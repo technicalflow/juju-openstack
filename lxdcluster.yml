@@ -1,0 +1,113 @@
+name: lxdcluster
+base: ubuntu@22.04
+# series: focal
+variables:
+  osd-devices: &osd-devices /dev/sda
+  expected-osd-count: &expected-osd-count 3
+  expected-mon-count: &expected-mon-count 3
+machines:
+  "0":
+    base: ubuntu@22.04
+    constraints: tags=nuc
+  "1":
+    base: ubuntu@22.04
+    constraints: tags=nuc
+  "2":
+    base: ubuntu@22.04
+    constraints: tags=nuc
+applications:
+  ceph-mon:
+    charm: ceph-mon
+    options:
+      expected-osd-count: *expected-osd-count
+      monitor-count: *expected-mon-count
+    num_units: 3
+    to:
+    - lxd:0
+    - lxd:1
+    - lxd:2
+  ceph-osd:
+    charm: ceph-osd
+    options:
+      osd-devices: *osd-devices
+    num_units: 3
+    to:
+    - 0
+    - 1
+    - 2
+  postgresql:
+    charm: postgresql
+    channel: stable
+    num_units: 1
+    to:
+    - lxd:0
+  vault:
+    charm: vault
+    channel: stable
+    num_units: 1
+    to:
+    - lxd:1
+    options:
+      auto-generate-root-ca-cert: true
+      # XXX: insecure, only for testing
+      totally-unsecure-auto-unlock: true
+  prometheus2:
+    charm: prometheus2
+    channel: stable
+    base: ubuntu@22.04
+    num_units: 1
+    to:
+    - lxd:2
+  grafana:
+    charm: grafana
+    num_units: 1
+    to:
+    - lxd:0
+  ovn-central:
+    charm: ovn-central
+    channel: stable
+    num_units: 3
+    to:
+    - 0
+    - 1
+    - 2
+  ovn-dedicated-chassis:
+    charm: ovn-dedicated-chassis
+    num_units: 3
+    to:
+    - 0
+    - 1
+    - 2
+  lxd:
+    charm: lxd
+    options:
+      lxd-listen-https: true
+      mode: cluster
+    num_units: 3
+    to:
+    - 0
+    - 1
+    - 2
+relations:
+- - ceph-osd:mon
+  - ceph-mon:osd
+- - lxd:ceph
+  - ceph-mon:client
+- - vault:db
+  - postgresql:db
+- - ovn-central:certificates
+  - vault:certificates
+- - ovn-dedicated-chassis:certificates
+  - vault:certificates
+- - ovn-dedicated-chassis:ovsdb
+  - ovn-central:ovsdb
+- - lxd:certificates
+  - vault:certificates
+- - lxd:ovsdb-cms
+  - ovn-central:ovsdb-cms
+- - prometheus2:grafana-source
+  - grafana:grafana-source
+- - prometheus2:manual-jobs
+  - lxd:prometheus-manual
+- - lxd:grafana-dashboard
+  - grafana:dashboards

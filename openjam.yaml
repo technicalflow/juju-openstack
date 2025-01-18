@@ -349,6 +349,10 @@ applications:
     charm: ch:vault
     channel: 1.8/stable
     num_units: 1
+    # options:
+    #   auto-generate-root-ca-cert: true
+    #   # XXX: insecure, only for testing
+    #   totally-unsecure-auto-unlock: true
     bindings:
       "": public-space
     to:
