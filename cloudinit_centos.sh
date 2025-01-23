@@ -11,10 +11,10 @@ users:
 runcmd:
   - sed -i 's|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g' /etc/yum.repos.d/CentOS-*
   - sed -i 's/mirrorlist/#mirrorlist/g'  /etc/yum.repos.d/CentOS-*
-  - dnf swap centos-{linux,stream}-repos
+  - dnf swap -y centos-{linux,stream}-repos
   - sed -i 's|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g' /etc/yum.repos.d/CentOS-*
   - sed -i 's/mirrorlist/#mirrorlist/g'  /etc/yum.repos.d/CentOS-*
-  - dnf distro-sync --best --allowerasing
+  - dnf distro-sync -y --best --allowerasing
 packages:
   - git
   - htop
