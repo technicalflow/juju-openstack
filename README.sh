@@ -5,6 +5,7 @@
 apt-add-repository ppa:maas/3.5
 apt-get update
 apt-get -y install maas jq curl
+
 systemctl disable --now systemd-timesyncd
 
 # MAAS init
@@ -12,12 +13,22 @@ maas init region+rack
 maas create admin 
 maas status
 
+# Automated MAAS init
+# maas createadmin --username maasadmin --password admin --email admin
+
 # Configure MAAS
-export APIKEY=$(maas apikey --username madmin)
-maas login madmin 'http://localhost:5240/MAAS/' $APIKEY 
-maas madmin status
-maas madmin ipranges read | jq
-maas madmin maas set-config
+export APIKEY=$(maas apikey --username maasadmin)
+# env | grep API #to get API Key for MAAS
+maas login maasadmin 'http://localhost:5240/MAAS/' $APIKEY 
+maas maasadmin status
+maas maasadmin ipranges read | jq
+maas maasadmin maas set-config
+
+# MAAS Network Configuration using CLI
+# maas maasadmin subnet update 192.168.50.0/24 gateway_ip=192.168.50.1
+# maas maasadmin ipranges create type=dynamic start_ip=192.168.92.0 end_ip=192.168.92.200
+# Add SSH Public Key in Maas for adding it during provision to all machines
+# maas maasadmin sshkeys create "key=$(cat ~/.ssh/id_rsa.pub)"
 
 # Install LXD and JUJU
 snap refresh lxd
@@ -29,17 +40,22 @@ juju add-cloud --local maas-cloud maascloud.yml
 juju add-cloud maas-cloud maascloud.yml 
 juju list-clouds
 juju add-credential maas-cloud
+juju list-credentials
 juju clouds
 juju clouds --local
 juju credentials
 juju models
 
 # Bootstrap JUJU Controller as LXD VM in MAAS Cloud
+# Remember to create manually a LXD VM for Juju Controller with tag juju-controller
 juju bootstrap maas-cloud --controller-charm-channel=3.6/stable --bootstrap-series=jammy --bootstrap-constraints "tags=jujucontroller mem=2G" --debug
+juju controllers
+juju status --color
 juju clouds --all
 juju models
 
-juju add-model --config default-series=jammy openstack
+juju add-model --config default-series=jammy opeshnstack
+juju switch openstack
 juju add-ssh-key "$(cat ~/.ssh/id_rsa.pub)"
 juju deploy ./openjam.yaml
 
@@ -53,7 +69,7 @@ vault operator init -key-shares=5 -key-threshold=3
 vault operator unseal
 vault operator unseal
 vault operator unseal
-export VAULT_TOKEN=roottokenreceivedafterinit
+export VAULT_TOKEN=root_token_received_after_vault_init
 vault token create -ttl=10m
 juju run vault/leader authorize-charm token=newroottoken
 juju run vault/leader generate-root-ca
@@ -62,36 +78,23 @@ juju run vault/leader generate-root-ca
 juju status --format=yaml openstack-dashboard | grep public-address | awk '{print $2}' | head -1
 juju run keystone/0 get-admin-password
 
-# Login in a browser with user 'admin' and password from above and domain 'admin_domain'
-
-
+# Login to openstack in a browser with user 'admin' and password from above and domain 'admin_domain'
+# You can also operate on openstack using CLI like in file openstack_config.sh
 
 # Inside Nodes (Not required)
-# apt remove -y iwl* ipw* bluez* alsa* b43* xdg* modemmanager 
-# apt update && apt upgrade -y && apt autoremove -y
-# export LANGUAGE=en_US.UTF-8
-# export LANG=en_US.iso-8859-2
-# export LC_ALL=en_US.UTF-8
-# systemctl disable bluetooth.target 
-# systemctl disable vmtoolsd.service
 # fstrim -a
 # swapoff -a
 # systemctl disable swap.target
 # rm -rf /swap.img 
 # sysctl vm.swappiness=10
-
 # modprobe br_netfilter
-# sysctl net.ipv4.ip_forward=1s
-# touch /etc/sysctl.d/10-addin.conf
-# tee /etc/sysctl.d/10-addin.conf<<EOF
-# net.ipv4.ip_forward = 1
-# EOF
+# sysctl -w net.ipv4.ip_forward=1
 
-# MTU experiments
-# ip link set dev eth0 mtu 1500
-# ip link set dev eno1 mtu 1500
-# ip link set dev br-eno1 mtu 1500
-# sed -i 's/mtu: 9000/mtu: 1500/' /etc/netplan/99-juju.yaml
-# nano /etc/netplan/99-juju.yaml
-# for i in $(lxc list -c ns,config:image.os | grep -i "running" | awk '{print $2}'); do lxc exec $i ip link set dev eth0 mtu 1500; done for i in $(lxc list -c ns,config:image.os | grep -i "running" | awk '{print $2}'); do lxc exec $i ip link; done
-# lxc list -c ns,config:image.os | grep -i "running" | awk '{print $2}'
+# To destroy the environment type:
+# juju destroy-model openstack --destroy-storage --force
+
+# To destroy the controller type:
+# juju destroy-controller maas-cloud --destroy-all-models
+
+# Sample juju scp command
+# juju scp vault/1:/home/ubuntu/config ~/config
