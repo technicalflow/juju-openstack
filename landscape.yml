@@ -1,0 +1,61 @@
+description: Landscape Scalable
+name: landscape-scalable
+series: jammy
+docs: https://discourse.charmhub.io/t/landscape-charm-bundles/10638
+machines:
+  '0':
+    base: ubuntu@22.04
+    constraints: tags=landscape
+applications:
+  haproxy:
+    charm: ch:haproxy
+    channel: stable
+    revision: 75
+    num_units: 1
+    expose: true
+    options:
+      default_timeouts: queue 60000, connect 5000, client 120000, server 120000
+      global_default_bind_options: no-tlsv10
+      services: ""
+      ssl_cert: SELFSIGNED
+    to:
+    - '0'
+  landscape-server:
+    charm: ch:landscape-server
+    channel: stable
+    revision: 124
+    num_units: 1
+    # constraints: mem=4096
+    options:
+      landscape_ppa: ppa:landscape/self-hosted-24.04
+    to:
+    - lxd:0
+  postgresql:
+    charm: ch:postgresql
+    channel: 14/stable
+    revision: 468
+    num_units: 1
+    options:
+      plugin_plpython3u_enable: true
+      plugin_ltree_enable: true
+      plugin_intarray_enable: true
+      plugin_debversion_enable: true
+      plugin_pg_trgm_enable: true
+      experimental_max_connections: 500
+    constraints: mem=2048
+    to:
+    - lxd:0
+  rabbitmq-server:
+    charm: ch:rabbitmq-server
+    channel: 3.9/stable
+    revision: 188
+    num_units: 1
+    options:
+      consumer-timeout: 259200000
+    to:
+    - lxd:0
+relations:
+    - [landscape-server, rabbitmq-server]
+    - [landscape-server, haproxy]
+    - [landscape-server:db, postgresql:db-admin]
+

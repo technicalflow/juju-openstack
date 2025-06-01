@@ -1,16 +1,21 @@
 # Repository containing juju bundles to provision openstack cloud
 
+# Recommending to keep similar storage setting across all computer - example have free /dev/sda
+
+# First install LXD
+snap refresh
+snap install lxd --channel=5.21/stable
+
 # Remember to add sudo where required
 # Install MAAS 
-apt-add-repository ppa:maas/3.5
-apt-get update
+apt-add-repository ppa:maas/3.6
 apt-get -y install maas jq curl
 
 systemctl disable --now systemd-timesyncd
 
 # MAAS init
 maas init region+rack
-maas create admin 
+maas createadmin 
 maas status
 
 # Automated MAAS init
@@ -24,20 +29,25 @@ maas maasadmin status
 maas maasadmin ipranges read | jq
 maas maasadmin maas set-config
 
+# Add regiond numworkers to 2
+maas maasadmin maas set-config regiond.numworkers=2
+
 # MAAS Network Configuration using CLI
 # maas maasadmin subnet update 192.168.50.0/24 gateway_ip=192.168.50.1
 # maas maasadmin ipranges create type=dynamic start_ip=192.168.92.0 end_ip=192.168.92.200
 # Add SSH Public Key in Maas for adding it during provision to all machines
 # maas maasadmin sshkeys create "key=$(cat ~/.ssh/id_rsa.pub)"
 
-# Install LXD and JUJU
-snap refresh lxd
-snap install lxd --channel=5.21/stable
+# LXC/LXD FIX for fixing avahi-deamon and dnsmasq used by LXD with coexistence with BIND in MAAS
+IP=$(ip -4 addr show scope global | grep inet | head -n1 | awk '{print $2}' | cut -d/ -f1)
+sed -i 's/listen-on-v6 { any; };/listen-on-v6 { none; };/' /etc/bind/named.conf.options
+sed -i "/listen-on-v6 { none; };/a\\listen-on { $IP; };" /etc/bind/named.conf.options
+
+# Install JUJU
 snap install juju --classic
 
 # Add MAAS Cloud to JUJU
-juju add-cloud --local maas-cloud maascloud.yml 
-juju add-cloud maas-cloud maascloud.yml 
+juju add-cloud maas-cloud maascloud.yaml
 juju list-clouds
 juju add-credential maas-cloud
 juju list-credentials
@@ -48,13 +58,13 @@ juju models
 
 # Bootstrap JUJU Controller as LXD VM in MAAS Cloud
 # Remember to create manually a LXD VM for Juju Controller with tag juju-controller
-juju bootstrap maas-cloud --controller-charm-channel=3.6/stable --bootstrap-series=jammy --bootstrap-constraints "tags=jujucontroller mem=2G" --debug
+juju bootstrap maas-cloud name=jujucontroller --controller-charm-channel=3.6/stable --bootstrap-series=jammy --bootstrap-constraints "tags=juju mem=4G" --debug
 juju controllers
 juju status --color
 juju clouds --all
 juju models
 
-juju add-model --config default-series=jammy opeshnstack
+juju add-model --config default-series=jammy openstack
 juju switch openstack
 juju add-ssh-key "$(cat ~/.ssh/id_rsa.pub)"
 juju deploy ./openjam.yaml
@@ -64,7 +74,9 @@ watch -c juju status --color --relations
 
 # Configure Vault when vault unit is ready but require initialization
 snap install vault
-export VAULT_ADDR="http://UNITIPADDRESS:8200"
+# export VAULT_ADDR="http://vault/leader:8200"
+export VAULT_ADDR=http://$(juju status vault/leader --format=yaml | awk '/public-address/ { print $2 }' | sed -n '2{p;q}'):8200
+
 vault operator init -key-shares=5 -key-threshold=3
 vault operator unseal
 vault operator unseal
@@ -98,3 +110,38 @@ juju run keystone/0 get-admin-password
 
 # Sample juju scp command
 # juju scp vault/1:/home/ubuntu/config ~/config
+
+# Cloud Init for Worker Nodes
+# #cloud-config
+# package_update: true
+# package_upgrade: true
+# packages:
+#   - curl
+#   - nano
+#   - htop
+# locale: en_GB.UTF-8
+# timezone: Europe/Warsaw
+# runcmd:
+#   - [touch, /tmp/one]
+#   - [swapoff, -a]
+#   - [rm, -rf /swap.img]
+#   - [sed, -i '/swap/s/^/#/' /etc/fstab]
+#   - [echo, net.ipv4.ip_unprivileged_port_start=80 >> /etc/sysctl.conf]
+#   - [reboot]
+
+# maasmod: ["sh", "-c", "echo === Start Customization Scripts ==="]
+# maasmod: ["curtin", "in-target", "--", "sh", "-c", "sudo swapoff -a"]
+# maasmod: ["curtin", "in-target", "--", "sh", "-c", "sudo rm -rf /swap.img"]
+# maasmod: ["curtin", "in-target", "--", "sh", "-c", "sed -i '/swap/s/^/#/' /etc/fstab"]
+# maasmod: ["curtin", "in-target", "--", "sh", "-c", "echo net.ipv4.ip_unprivileged_port_start=80 | sudo tee -a /etc/sysctl.conf"]
+# maasmod: ["curtin", "in-target", "--", "sh", "-c", "sudo systemctl stop swap.target"]
+# maasmod: ["curtin", "in-target", "--", "sh", "-c", "sudo systemctl disable swap.target"]
+# maasmod: ["curtin", "in-target", "--", "sh", "-c", "sudo fstrim -a"]
+# maasmod: ["sh", "-c", "echo === Done Customization Scripts ==="]
+
+# Adding a VM for the Juju Controller in MAAS from the command line
+# add a VM for the juju controller with minimal memory
+# export VM_HOST_ID=$(maas maasadmin vm-hosts read | jq '.[] | select(.name=="maaslxd") | .id')
+# maas maasadmin vm-host compose $VM_HOST_ID cores=2 memory=4096 architecture="amd64/generic"  storage="main:16(pool1)" hostname="jujucontroller"
+# # allow high CPU oversubscription so all VMs can use all cores
+# maas maasadmin vm-host update $VM_HOST_ID cpu_over_commit_ratio=4
