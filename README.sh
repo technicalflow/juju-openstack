@@ -145,3 +145,24 @@ juju run keystone/0 get-admin-password
 # maas maasadmin vm-host compose $VM_HOST_ID cores=2 memory=4096 architecture="amd64/generic"  storage="main:16(pool1)" hostname="jujucontroller"
 # # allow high CPU oversubscription so all VMs can use all cores
 # maas maasadmin vm-host update $VM_HOST_ID cpu_over_commit_ratio=4
+
+# Add LXD to JUJU
+# cat << EOF > ~/lxd.yaml
+# clouds:         # clouds key is required.
+# lxd:
+#   type: lxd
+#   auth-types: [certificate]
+#   endpoint: 192.168.92.210:8443
+# EOF
+# juju add-cloud lxdlocal
+# juju add-credential lxd -f ~/lxd.yaml
+# juju add-credential lxd
+# juju add-model --config default-series=noble lxctests
+# # lxc config device add juju-cb866e-1 eth1 nic name=eth1 nictype=bridged parent=br0
+
+# Add landscape client
+# landscape-config --computer-title "sv-upsilon" --account-name standalone  --url https://192.168.92.11/message-system --ssl-public-key=/etc/landscape/landscape.crt --tags=server -p pineapple1
+# curl https://landscape.maas/ping
+
+# Mysql Cluster after reboot
+# juju run mysql-innodb-cluster/1 reboot-cluster-from-complete-outage

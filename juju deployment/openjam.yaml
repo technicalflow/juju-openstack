@@ -26,7 +26,8 @@ applications:
       gui-x: '790'
       gui-y: '1540'
     charm: ch:ceph-mon
-    channel: latest/edge
+    # channel: latest/edge
+    channel: quincy/stable
     num_units: 3
     options:
       expected-osd-count: *expected-osd-count
@@ -43,7 +44,8 @@ applications:
       gui-x: '1065'
       gui-y: '1540'
     charm: ch:ceph-osd
-    channel: latest/edge
+    # channel: latest/edge
+    channel: quincy/stable
     num_units: 3
     options:
       osd-devices: *osd-devices
@@ -59,7 +61,8 @@ applications:
       gui-x: '850'
       gui-y: '900'
     charm: ch:ceph-radosgw
-    channel: latest/edge
+    # channel: latest/edge
+    channel: quincy/stable
     num_units: 1
     options:
       source: *openstack-origin
@@ -302,15 +305,15 @@ applications:
     bindings:
       "": public-space
     to:
-    - lxd:0
-    - lxd:1
-    - lxd:2
+    - '0'
+    - '1'
+    - '2'
   ovn-central:
     annotations:
       gui-x: '70'
       gui-y: '1550'
     charm: ch:ovn-central
-    channel: 23.03/stable
+    channel: 24.03/stable
     num_units: 3
     options:
       source: *openstack-origin
@@ -325,7 +328,7 @@ applications:
       gui-x: '120'
       gui-y: '1030'
     charm: ch:ovn-chassis
-    channel: 23.03/stable
+    channel: 24.03/stable
     # Please update the `bridge-interface-mappings` to values suitable for the
     # hardware used in your deployment. See the referenced documentation at the
     # top of this file.
