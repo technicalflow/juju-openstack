@@ -19,7 +19,7 @@ cd packer-maas/ol9
 
 # Build the image
 sudo packer init .
-sudo PACKER_LOG=1 packer build
+sudo PACKER_LOG=1 packer build ol9.pkr.hcl
 
 # Add image to MAAS
 maas madmin boot-resources create \
