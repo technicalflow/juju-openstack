@@ -1,179 +1,155 @@
-# Please refer to the OpenStack Charms Deployment Guide for more information.
-# https://docs.openstack.org/project-deploy-guide/charm-deployment-guide
-
+# OpenStack Caracal (2024.1) on Ubuntu 24.04 LTS (Noble)
 name: openstack-base
-# series: focal
-base: ubuntu@22.04
+default-base: ubuntu@24.04
+series: noble
+
 variables:
   openstack-origin: &openstack-origin distro
-  data-port: &data-port br-ex:eno1
-  osd-devices: &osd-devices /dev/sda
+  data-port: &data-port br-ex:enp1s0
+  osd-devices: &osd-devices /dev/vdb
   expected-osd-count: &expected-osd-count 3
   expected-mon-count: &expected-mon-count 3
+
 machines:
   '0':
-    base: ubuntu@22.04
-    constraints: tags=nuc
+    base: ubuntu@24.04
+    constraints: tags=vm
   '1':
-    base: ubuntu@22.04
-    constraints: tags=nuc
+    base: ubuntu@24.04
+    constraints: tags=vm
   '2':
-    base: ubuntu@22.04
-    constraints: tags=nuc
+    base: ubuntu@24.04
+    constraints: tags=vm
+
 applications:
   ceph-mon:
-    annotations:
-      gui-x: '790'
-      gui-y: '1540'
     charm: ch:ceph-mon
-    # channel: latest/edge
-    channel: quincy/stable
+    channel: squid/stable
     num_units: 3
     options:
       expected-osd-count: *expected-osd-count
       monitor-count: *expected-mon-count
       source: *openstack-origin
     bindings:
-      "": public-space
+      "": public
     to:
     - lxd:0
     - lxd:1
     - lxd:2
+
   ceph-osd:
-    annotations:
-      gui-x: '1065'
-      gui-y: '1540'
     charm: ch:ceph-osd
-    # channel: latest/edge
-    channel: quincy/stable
+    channel: squid/stable
     num_units: 3
     options:
       osd-devices: *osd-devices
       source: *openstack-origin
     bindings:
-      "": public-space
+      "": public
     to:
     - '0'
     - '1'
     - '2'
+
   ceph-radosgw:
-    annotations:
-      gui-x: '850'
-      gui-y: '900'
     charm: ch:ceph-radosgw
-    # channel: latest/edge
-    channel: quincy/stable
+    channel: squid/stable
     num_units: 1
     options:
       source: *openstack-origin
     bindings:
-      "": public-space
+      "": public
     to:
-    - lxd:0
+    - lxd:2
+
   cinder-mysql-router:
-    annotations:
-      gui-x: '900'
-      gui-y: '1400'
+    base: ubuntu@24.04
     charm: ch:mysql-router
     channel: 8.0/stable
+
   cinder:
-    annotations:
-      gui-x: '980'
-      gui-y: '1270'
     charm: ch:cinder
-    channel: yoga/stable
+    channel: 2024.1/stable
     num_units: 1
     options:
       block-device: None
       glance-api-version: 2
       openstack-origin: *openstack-origin
     bindings:
-      "": public-space
+      "": public
     to:
     - lxd:1
+
   cinder-ceph:
-    annotations:
-      gui-x: '1120'
-      gui-y: '1400'
-    bindings:
-      "": public-space
+    base: ubuntu@24.04
     charm: ch:cinder-ceph
-    channel: yoga/stable
+    channel: 2024.1/stable
     num_units: 0
+
   glance-mysql-router:
-    annotations:
-      gui-x: '-290'
-      gui-y: '1400'
-    bindings:
-      "": public-space
+    base: ubuntu@24.04
     charm: ch:mysql-router
     channel: 8.0/stable
+    bindings:
+      "": public
+
   glance:
-    annotations:
-      gui-x: '-230'
-      gui-y: '1270'
     charm: ch:glance
-    channel: yoga/stable
+    channel: 2024.1/stable
     num_units: 1
     options:
       openstack-origin: *openstack-origin
     bindings:
-      "": public-space
+      "": public
     to:
     - lxd:2
+
   glance-simplestreams-sync:
     charm: ch:glance-simplestreams-sync
-    channel: yoga/stable
+    channel: 2024.1/stable
     num_units: 1
     options:
       run: true
     bindings:
-      "": public-space
+      "": public
     to:
-      - 'lxd:2'
+    - 'lxd:2'
+
   keystone-mysql-router:
-    annotations:
-      gui-x: '230'
-      gui-y: '1400'
+    base: ubuntu@24.04
     charm: ch:mysql-router
     channel: 8.0/stable
     bindings:
-      "": public-space
+      "": public
+
   keystone:
-    annotations:
-      gui-x: '300'
-      gui-y: '1270'
     charm: ch:keystone
-    channel: yoga/stable
+    channel: 2024.1/stable
     num_units: 1
     options:
       openstack-origin: *openstack-origin
     bindings:
-      "": public-space
+      "": public
     to:
     - lxd:0
+
   neutron-mysql-router:
-    annotations:
-      gui-x: '505'
-      gui-y: '1385'
+    base: ubuntu@24.04
     charm: ch:mysql-router
     channel: 8.0/stable
     bindings:
-      "": public-space
+      "": public
+
   neutron-api-plugin-ovn:
-    annotations:
-      gui-x: '690'
-      gui-y: '1385'
+    base: ubuntu@24.04
     charm: ch:neutron-api-plugin-ovn
-    channel: 2023.2/stable
+    channel: 2024.1/stable
     bindings:
-      "": public-space
+      "": public
+
   neutron-api:
-    annotations:
-      gui-x: '580'
-      gui-y: '1270'
     charm: ch:neutron-api
-    channel: 2023.2/stable
+    channel: 2024.1/stable
     num_units: 1
     options:
       enable-ml2-port-security: true
@@ -181,64 +157,56 @@ applications:
       flat-network-providers: physnet1
       openstack-origin: *openstack-origin
     bindings:
-      "": public-space
+      "": public
     to:
     - lxd:1
+
   placement-mysql-router:
-    annotations:
-      gui-x: '1320'
-      gui-y: '1385'
+    base: ubuntu@24.04
     charm: ch:mysql-router
     channel: 8.0/stable
     bindings:
-      "": public-space
+      "": public
+
   placement:
-    annotations:
-      gui-x: '1320'
-      gui-y: '1270'
     charm: ch:placement
-    channel: yoga/stable
+    channel: 2024.1/stable
     num_units: 1
     options:
       openstack-origin: *openstack-origin
     bindings:
-      "": public-space
+      "": public
     to:
     - lxd:2
+
   nova-mysql-router:
-    annotations:
-      gui-x: '-30'
-      gui-y: '1385'
+    base: ubuntu@24.04
     charm: ch:mysql-router
     channel: 8.0/stable
     bindings:
-      "": public-space
+      "": public
+
   nova-cloud-controller:
-    annotations:
-      gui-x: '35'
-      gui-y: '1270'
     charm: ch:nova-cloud-controller
-    channel: 2023.2/stable
+    channel: 2024.1/stable
     num_units: 1
     options:
       console-access-protocol: spice
       network-manager: Neutron
       openstack-origin: *openstack-origin
     bindings:
-      "": public-space
+      "": public
     to:
     - lxd:0
+
   nova-compute:
-    annotations:
-      gui-x: '190'
-      gui-y: '890'
     charm: ch:nova-compute
-    channel: 2023.2/stable
+    channel: 2024.1/stable
     num_units: 3
     options:
       customize-failure-domain: true
       libvirt-image-backend: rbd
-      virt-type: qemu
+      virt-type: kvm
       rbd-pool: cinder-ceph
       config-flags: default_ephemeral_format=ext4
       enable-live-migration: true
@@ -246,120 +214,96 @@ applications:
       migration-auth-type: ssh
       openstack-origin: *openstack-origin
     bindings:
-      "": public-space
+      "": public
     to:
     - '0'
     - '1'
     - '2'
+
   ntp:
-    annotations:
-      gui-x: '315'
-      gui-y: '1030'
+    base: ubuntu@24.04
     charm: ch:ntp
     num_units: 0
     bindings:
-      "": public-space
+      "": public
+
   dashboard-mysql-router:
-    annotations:
-      gui-x: '510'
-      gui-y: '1030'
+    base: ubuntu@24.04
     charm: ch:mysql-router
     channel: 8.0/stable
     bindings:
-      "": public-space
+      "": public
+
   openstack-dashboard:
-    annotations:
-      gui-x: '585'
-      gui-y: '900'
     charm: ch:openstack-dashboard
-    channel: yoga/stable
+    channel: 2024.1/stable
     num_units: 1
     options:
-      default-theme: default
-      default-create-volume: no
-      enforce-ssl: true
       openstack-origin: *openstack-origin
-      password-retrieve: true
     bindings:
-      "": public-space
-    to:
-    - lxd:1
-  rabbitmq-server:
-    annotations:
-      gui-x: '300'
-      gui-y: '1550'
-    charm: ch:rabbitmq-server
-    channel: 3.9/stable
-    num_units: 1
-    bindings:
-      "": public-space
+      "": public
     to:
     - lxd:2
+
+  rabbitmq-server:
+    charm: ch:rabbitmq-server
+    channel: 3.12/stable
+    num_units: 1
+    bindings:
+      "": public
+    to:
+    - lxd:0
+
   mysql-innodb-cluster:
-    annotations:
-      gui-x: '535'
-      gui-y: '1550'
     charm: ch:mysql-innodb-cluster
     channel: 8.0/stable
     num_units: 3
     bindings:
-      "": public-space
+      "": public
     to:
-    - '0'
-    - '1'
-    - '2'
+    - lxd:0
+    - lxd:1
+    - lxd:2
+
   ovn-central:
-    annotations:
-      gui-x: '70'
-      gui-y: '1550'
     charm: ch:ovn-central
     channel: 24.03/stable
     num_units: 3
     options:
       source: *openstack-origin
     bindings:
-      "": public-space
+      "": public
     to:
     - lxd:0
     - lxd:1
     - lxd:2
+
   ovn-chassis:
-    annotations:
-      gui-x: '120'
-      gui-y: '1030'
+    base: ubuntu@24.04
     charm: ch:ovn-chassis
     channel: 24.03/stable
-    # Please update the `bridge-interface-mappings` to values suitable for the
-    # hardware used in your deployment. See the referenced documentation at the
-    # top of this file.
     options:
       ovn-bridge-mappings: physnet1:br-ex
       bridge-interface-mappings: *data-port
     bindings:
-      "": public-space
+      "": public
+
   vault-mysql-router:
-    annotations:
-      gui-x: '1535'
-      gui-y: '1560'
+    base: ubuntu@24.04
     charm: ch:mysql-router
     channel: 8.0/stable
     bindings:
-      "": public-space
+      "": public
+
   vault:
-    annotations:
-      gui-x: '1610'
-      gui-y: '1430'
     charm: ch:vault
     channel: 1.8/stable
     num_units: 1
-    # options:
-    #   auto-generate-root-ca-cert: true
-    #   # XXX: insecure, only for testing
-    #   totally-unsecure-auto-unlock: true
     bindings:
-      "": public-space
+      "": public
     to:
-    - lxd:0
+    - lxd:1
+
 relations:
 - - nova-compute:amqp
   - rabbitmq-server:amqp
@@ -453,8 +397,6 @@ relations:
   - vault:certificates
 - - ovn-central:ovsdb-cms
   - neutron-api-plugin-ovn:ovsdb-cms
-- - neutron-api:certificates
-  - vault:certificates
 - - ovn-chassis:nova-compute
   - nova-compute:neutron-plugin
 - - ovn-chassis:certificates
